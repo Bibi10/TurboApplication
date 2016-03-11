@@ -2,59 +2,54 @@
 //  MasterViewController.swift
 //  TurboApplication
 //
-//  Created by Helmi Saddem on 11/03/2016.
-//  Copyright © 2016 Turbo. All rights reserved.
+//  Created by BibiX  on 11/03/2016.
+//  Copyright © 2016 BibiX . All rights reserved.
 //
 
 import UIKit
 
 class MasterViewController: UITableViewController {
 
-    var detailViewController: DetailViewController? = nil
-    var objects = [AnyObject]()
+    var jsonArray = [AnyObject]()
 
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        self.navigationItem.leftBarButtonItem = self.editButtonItem()
-
-        let addButton = UIBarButtonItem(barButtonSystemItem: .Add, target: self, action: "insertNewObject:")
-        self.navigationItem.rightBarButtonItem = addButton
-        if let split = self.splitViewController {
-            let controllers = split.viewControllers
-            self.detailViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? DetailViewController
+        
+        // Recuperate the data from the json file and fill ijn the jsonArray
+        if let filePath = NSBundle.mainBundle().pathForResource("data_test_ios",ofType:"json") {
+            do {
+                let data = try NSData(contentsOfFile:filePath, options:NSDataReadingOptions.DataReadingUncached)
+                do {
+                    let json:AnyObject? = try NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments)
+ 
+                    if let nsArrayObject = json as? NSArray {
+                        if let swiftArray = nsArrayObject as Array? {
+                            jsonArray = swiftArray
+                            print(swiftArray)
+                        }
+                    }
+                } catch let caught as NSError {
+                    print(caught)
+                }
+            }
+            catch {/* error handling here */}
         }
+        
+        UITableViewAutomaticDimension
+        tableView.estimatedRowHeight = 110.0
+        
+        self.tableView.reloadData()
+        
     }
 
     override func viewWillAppear(animated: Bool) {
-        self.clearsSelectionOnViewWillAppear = self.splitViewController!.collapsed
-        super.viewWillAppear(animated)
+              super.viewWillAppear(animated)
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
-    }
-
-    func insertNewObject(sender: AnyObject) {
-        objects.insert(NSDate(), atIndex: 0)
-        let indexPath = NSIndexPath(forRow: 0, inSection: 0)
-        self.tableView.insertRowsAtIndexPaths([indexPath], withRowAnimation: .Automatic)
-    }
-
-    // MARK: - Segues
-
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        if segue.identifier == "showDetail" {
-            if let indexPath = self.tableView.indexPathForSelectedRow {
-                let object = objects[indexPath.row] as! NSDate
-                let controller = (segue.destinationViewController as! UINavigationController).topViewController as! DetailViewController
-                controller.detailItem = object
-                controller.navigationItem.leftBarButtonItem = self.splitViewController?.displayModeButtonItem()
-                controller.navigationItem.leftItemsSupplementBackButton = true
-            }
-        }
     }
 
     // MARK: - Table View
@@ -64,31 +59,45 @@ class MasterViewController: UITableViewController {
     }
 
     override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return objects.count
+        
+        return jsonArray.count
     }
 
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath)
+        let cell = tableView.dequeueReusableCellWithIdentifier("customCell", forIndexPath: indexPath) as? CustomcellTableViewCell
+        
+        
+        let object = jsonArray[indexPath.row] as! NSDictionary
+        
+        cell?.titleLabel!.text = object.objectForKey("title") as? String
+        cell?.descriptionLabel?.numberOfLines = 0
+        
 
-        let object = objects[indexPath.row] as! NSDate
-        cell.textLabel!.text = object.description
-        return cell
+        
+        cell?.turboImage.imageFromUrl((object.objectForKey("url") as? String)!)
+           cell?.descriptionLabel!.text = object.objectForKey("description") as? String
+        
+        
+        return cell!
     }
 
-    override func tableView(tableView: UITableView, canEditRowAtIndexPath indexPath: NSIndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+    override func tableView(tableView: UITableView, heightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
+        return UITableViewAutomaticDimension
     }
 
-    override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
-        if editingStyle == .Delete {
-            objects.removeAtIndex(indexPath.row)
-            tableView.deleteRowsAtIndexPaths([indexPath], withRowAnimation: .Fade)
-        } else if editingStyle == .Insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view.
+}
+
+extension UIImageView {
+    public func imageFromUrl(urlString: String) {
+        if let url = NSURL(string: urlString) {
+            let request = NSURLRequest(URL: url)
+            NSURLConnection.sendAsynchronousRequest(request, queue: NSOperationQueue.mainQueue()) {
+                (response: NSURLResponse?, data: NSData?, error: NSError?) -> Void in
+                if let imageData = data as NSData? {
+                    self.image = UIImage(data: imageData)
+                }
+            }
         }
     }
-
-
 }
 
